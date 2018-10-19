@@ -428,7 +428,17 @@ public interface IBindHelper {
 inject方法是最主要的方法，但实现很简单，就是通过**反射**去调用APT生成的帮助类的方法去实现View的自动绑定
 
 ### 完成！拉出来遛遛
-我们来修改MainActivity中的代码
+在app module里添加依赖
+```
+dependencies {
+    ...
+    annotationProcessor project(':apt-compiler')
+    implementation project(':apt-api')
+}
+```
+![image](https://github.com/LiMubai2017/ImagesByMuBai/blob/master/androidstudio_version.jpg?raw=true)
+
+我们再来修改MainActivity中的代码
 ```
 public class MainActivity extends AppCompatActivity {
 
@@ -445,13 +455,6 @@ public class MainActivity extends AppCompatActivity {
     }
 }
 ```
-在app module里添加依赖
-```
-    ...
-    annotationProcessor project(':apt-compiler')
-    implementation project(':apt-api')
-```
-![image](https://github.com/LiMubai2017/ImagesByMuBai/blob/master/androidstudio_version.jpg?raw=true)
 
 大功告成！我们来运行项目试试看
 ![image](https://github.com/LiMubai2017/ImagesByMuBai/blob/master/result.jpg?raw=true)
