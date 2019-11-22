@@ -1,6 +1,7 @@
 package com.example.apt_compiler;
 
 import com.example.apt_annotation.BindView;
+import com.google.auto.service.AutoService;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -28,6 +29,7 @@ import javax.tools.JavaFileObject;
 
 @SupportedSourceVersion(SourceVersion.RELEASE_7)
 @SupportedAnnotationTypes("com.example.apt_annotation.BindView")
+@AutoService(Processor.class)
 public class BindViewProcessor extends AbstractProcessor {
     private Filer mFilerUtils;       // 文件管理工具类
     private Types mTypesUtils;    // 类型处理工具类
