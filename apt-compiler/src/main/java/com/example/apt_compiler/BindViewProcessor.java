@@ -36,15 +36,6 @@ public class BindViewProcessor extends AbstractProcessor {
 
     private static final String _SUFFIX = "$$Autobind";
 
-    private static final String CONST_PARAM_TARGET_NAME = "target";
-
-    //MainActivity substitute = (MainActivity)target;
-    private static final String TARGET_ASSIGN_FORMAT = "%s substitute = (%s)target";
-
-    //substitute.testTextView = substitute.findViewById(2131165315);
-    private static final String TARGET_STATEMENT_FORMAT = "substitute.%s = substitute.findViewById(%d)";
-
-
     private Filer mFilerUtils;       // 文件管理工具类
     private Types mTypesUtils;    // 类型处理工具类
     private Elements mElementsUtils;  // Element处理工具类
@@ -107,30 +98,27 @@ public class BindViewProcessor extends AbstractProcessor {
     }
 
     private void generateCodeByPoet(TypeElement typeElement) {
-
-        String rawClassName = typeElement.getSimpleName().toString(); //获取要绑定的View所在类的名称
+        String simpleName = typeElement.getSimpleName().toString();
+        TypeName className = TypeName.get(typeElement.asType());//获取要绑定的View所在类的名称
         String packageName = mElementsUtils.getPackageOf(typeElement).getQualifiedName().toString(); //获取要绑定的View所在类的包名
 
-        MethodSpec.Builder builder = MethodSpec.methodBuilder("inject")
+        MethodSpec.Builder injectMethod = MethodSpec.methodBuilder("inject")
                 .addAnnotation(Override.class)
                 .addModifiers(Modifier.PUBLIC)
-                .addParameter(TypeName.OBJECT, CONST_PARAM_TARGET_NAME)
-                .addStatement(String.format(TARGET_ASSIGN_FORMAT, rawClassName, rawClassName));
-
+                .addParameter(Object.class, "target")
+                .addStatement("$T substitute = ($T)target", className, className);
 
         for (ViewInfo viewInfo : mToBindMap.get(typeElement)) { //遍历每一个需要绑定的view
-            builder.addStatement(String.format(TARGET_STATEMENT_FORMAT, viewInfo.viewName, viewInfo.id));
-//            builder.addStatement(TARGET_STATEMENT_FORMAT, viewInfo.viewName, viewInfo.id);//为什么这样写会报错？
+            injectMethod.addStatement("substitute.$L = substitute.findViewById($L)", viewInfo.viewName, viewInfo.id);
         }
 
-        TypeSpec binder = TypeSpec.classBuilder(rawClassName + _SUFFIX)
+        TypeSpec helperClass = TypeSpec.classBuilder(simpleName + _SUFFIX)
                 .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
                 .addSuperinterface(ClassName.get("com.example.apt_api.template", "IBindHelper"))
-                .addMethod(builder.build())
+                .addMethod(injectMethod.build())
                 .build();
 
-
-        JavaFile javaFile = JavaFile.builder(packageName, binder).build();
+        JavaFile javaFile = JavaFile.builder(packageName, helperClass).build();
         try {
             javaFile.writeTo(mFilerUtils);
         } catch (IOException e) {
