@@ -1,12 +1,16 @@
 package com.example.apt_compiler;
 
 import com.example.apt_annotation.BindView;
+import com.google.auto.service.AutoService;
+import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.TypeSpec;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -19,16 +23,19 @@ import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.PackageElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
-import javax.tools.JavaFileObject;
 
 @SupportedSourceVersion(SourceVersion.RELEASE_7)
 @SupportedAnnotationTypes("com.example.apt_annotation.BindView")
+@AutoService(Processor.class)
 public class BindViewProcessor extends AbstractProcessor {
+
+    private static final String _SUFFIX = "$$Autobind";
+
     private Filer mFilerUtils;       // 文件管理工具类
     private Types mTypesUtils;    // 类型处理工具类
     private Elements mElementsUtils;  // Element处理工具类
@@ -68,21 +75,7 @@ public class BindViewProcessor extends AbstractProcessor {
 
             //对不同的Activity生成不同的帮助类
             for (TypeElement typeElement : mToBindMap.keySet()) {
-                String code = generateCode(typeElement);    //获取要生成的帮助类中的所有代码
-                String helperClassName = typeElement.getQualifiedName() + "$$Autobind"; //构建要生成的帮助类的类名
-
-                //输出帮助类的java文件，在这个例子中就是MainActivity$$Autobind.java文件
-                //输出的文件在build->source->apt->目录下
-                try {
-                    JavaFileObject jfo = mFilerUtils.createSourceFile(helperClassName, typeElement);
-                    Writer writer = jfo.openWriter();
-                    writer.write(code);
-                    writer.flush();
-                    writer.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
+                generateCodeByPoet(typeElement);
             }
             return true;
         }
@@ -104,33 +97,37 @@ public class BindViewProcessor extends AbstractProcessor {
         }
     }
 
-    private String generateCode(TypeElement typeElement) {
-        String rawClassName = typeElement.getSimpleName().toString(); //获取要绑定的View所在类的名称
-        String packageName = ((PackageElement) mElementsUtils.getPackageOf(typeElement)).getQualifiedName().toString(); //获取要绑定的View所在类的包名
-        String helperClassName = rawClassName + "$$Autobind";   //要生成的帮助类的名称
+    private void generateCodeByPoet(TypeElement typeElement) {
+        String simpleName = typeElement.getSimpleName().toString();
+        TypeName className = TypeName.get(typeElement.asType());//获取要绑定的View所在类的名称
+        String packageName = mElementsUtils.getPackageOf(typeElement).getQualifiedName().toString(); //获取要绑定的View所在类的包名
 
-        StringBuilder builder = new StringBuilder();
-        builder.append("package ").append(packageName).append(";\n");   //构建定义包的代码
-        builder.append("import com.example.apt_api.template.IBindHelper;\n\n"); //构建import类的代码
+        MethodSpec.Builder injectMethod = MethodSpec.methodBuilder("inject")
+                .addAnnotation(Override.class)
+                .addModifiers(Modifier.PUBLIC)
+                .addParameter(Object.class, "target")
+                .addStatement("$T substitute = ($T)target", className, className);
 
-        builder.append("public class ").append(helperClassName).append(" implements ").append("IBindHelper");   //构建定义帮助类的代码
-        builder.append(" {\n"); //代码格式，可以忽略
-        builder.append("\t@Override\n");    //声明这个方法为重写IBindHelper中的方法
-        builder.append("\tpublic void inject(" + "Object" + " target ) {\n");   //构建方法的代码
         for (ViewInfo viewInfo : mToBindMap.get(typeElement)) { //遍历每一个需要绑定的view
-            builder.append("\t\t"); //代码格式，可以忽略
-            builder.append(rawClassName + " substitute = " + "(" + rawClassName + ")" + "target;\n");    //强制类型转换
-
-            builder.append("\t\t"); //代码格式，可以忽略
-            builder.append("substitute." + viewInfo.viewName).append(" = ");    //构建赋值表达式
-            builder.append("substitute.findViewById(" + viewInfo.id + ");\n");  //构建赋值表达式
+            injectMethod.addStatement("substitute.$L = substitute.findViewById($L)", viewInfo.viewName, viewInfo.id);
         }
-        builder.append("\t}\n");    //代码格式，可以忽略
-        builder.append('\n');   //代码格式，可以忽略
-        builder.append("}\n");  //代码格式，可以忽略
 
-        return builder.toString();
+        TypeSpec helperClass = TypeSpec.classBuilder(simpleName + _SUFFIX)
+                .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                .addSuperinterface(ClassName.get("com.example.apt_api.template", "IBindHelper"))
+                .addMethod(injectMethod.build())
+                .build();
+
+        JavaFile javaFile = JavaFile.builder(packageName, helperClass).build();
+        try {
+            javaFile.writeTo(mFilerUtils);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
+
+
+
 
     //要绑定的View的信息载体
     class ViewInfo {
