@@ -13,7 +13,6 @@ import java.util.Set;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedSourceVersion;
@@ -25,6 +24,7 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.JavaFileObject;
+
 
 @SupportedSourceVersion(SourceVersion.RELEASE_7)
 @SupportedAnnotationTypes("com.example.apt_annotation.BindView")
@@ -42,21 +42,23 @@ public class BindViewProcessor extends AbstractProcessor {
         mFilerUtils = processingEnv.getFiler();
         mTypesUtils = processingEnv.getTypeUtils();
         mElementsUtils = processingEnv.getElementUtils();
+
     }
 
-    /*
-    @Override
-    public Set<String> getSupportedAnnotationTypes() {
-        HashSet<String> supportTypes = new LinkedHashSet<>();
-        supportTypes.add(BindView.class.getCanonicalName());
-        return supportTypes; //将要支持的注解放入其中
-    }
 
-    @Override
-    public SourceVersion getSupportedSourceVersion() {
-        return SourceVersion.latestSupported();// 表示支持最新的Java版本
-    }
-    */
+//    @Override
+//    public Set<String> getSupportedAnnotationTypes() {
+//        HashSet<String> supportTypes = new LinkedHashSet<>();
+//        supportTypes.add(BindView.class.getCanonicalName());
+//        return supportTypes; //将要支持的注解放入其中
+//    }
+//
+//    @Override
+//    public SourceVersion getSupportedSourceVersion() {
+//        return SourceVersion.latestSupported();// 表示支持最新的Java版本
+//    }
+
+
 
     @Override
     public boolean process(Set<? extends TypeElement> set, RoundEnvironment roundEnv) {
@@ -93,6 +95,7 @@ public class BindViewProcessor extends AbstractProcessor {
         for (Element element : elements) {  //遍历每一个element
             VariableElement variableElement = (VariableElement) element;    //被@BindView标注的应当是变量，这里简单的强制类型转换
             TypeElement enclosingElement = (TypeElement) variableElement.getEnclosingElement(); //获取代表Activity的TypeElement
+
             Set<ViewInfo> views = mToBindMap.get(enclosingElement); //views储存着一个Activity中将要绑定的view的信息
             if (views == null) {    //如果views不存在就new一个
                 views = new HashSet<>();
@@ -117,6 +120,7 @@ public class BindViewProcessor extends AbstractProcessor {
         builder.append(" {\n"); //代码格式，可以忽略
         builder.append("\t@Override\n");    //声明这个方法为重写IBindHelper中的方法
         builder.append("\tpublic void inject(" + "Object" + " target ) {\n");   //构建方法的代码
+
         for (ViewInfo viewInfo : mToBindMap.get(typeElement)) { //遍历每一个需要绑定的view
             builder.append("\t\t"); //代码格式，可以忽略
             builder.append(rawClassName + " substitute = " + "(" + rawClassName + ")" + "target;\n");    //强制类型转换
@@ -125,6 +129,7 @@ public class BindViewProcessor extends AbstractProcessor {
             builder.append("substitute." + viewInfo.viewName).append(" = ");    //构建赋值表达式
             builder.append("substitute.findViewById(" + viewInfo.id + ");\n");  //构建赋值表达式
         }
+
         builder.append("\t}\n");    //代码格式，可以忽略
         builder.append('\n');   //代码格式，可以忽略
         builder.append("}\n");  //代码格式，可以忽略

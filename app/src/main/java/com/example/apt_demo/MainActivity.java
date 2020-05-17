@@ -18,6 +18,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         AutoBind.getInstance().inject(this);
+
         testTextView.setText("APT 测试");
+        
     }
 }

@@ -3,7 +3,7 @@ package com.example.apt_api.launcher;
 import com.example.apt_api.template.IBindHelper;
 
 public class AutoBind {
-    private static AutoBind instance = null;
+    private static volatile AutoBind instance = null;
 
     public AutoBind() {
     }
@@ -24,6 +24,7 @@ public class AutoBind {
         String helperName = className + "$$Autobind";
         try {
             IBindHelper helper = (IBindHelper) (Class.forName(helperName).getConstructor().newInstance());
+
             helper.inject(target);
         }   catch (Exception e) {
             e.printStackTrace();
